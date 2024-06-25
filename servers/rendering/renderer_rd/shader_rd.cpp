@@ -463,21 +463,30 @@ bool ShaderRD::_load_from_cache(Version *p_version, int p_group) {
 }
 
 void ShaderRD::_save_to_cache(Version *p_version, int p_group) {
-	ERR_FAIL_COND(!shader_cache_dir_valid);
-	String sha1 = _version_get_sha1(p_version);
-	String path = shader_cache_dir.path_join(name).path_join(group_sha256[p_group]).path_join(sha1) + ".cache";
+    ERR_FAIL_COND(!shader_cache_dir_valid);
 
-	Ref<FileAccess> f = FileAccess::open(path, FileAccess::WRITE);
-	ERR_FAIL_COND(f.is_null());
-	f->store_buffer((const uint8_t *)shader_file_header, 4);
-	f->store_32(cache_file_version); // File version.
-	uint32_t variant_count = group_to_variant_map[p_group].size();
-	f->store_32(variant_count); // Variant count.
-	for (uint32_t i = 0; i < variant_count; i++) {
-		int variant_id = group_to_variant_map[p_group][i];
-		f->store_32(p_version->variant_data[variant_id].size()); // Stage count.
-		f->store_buffer(p_version->variant_data[variant_id].ptr(), p_version->variant_data[variant_id].size());
-	}
+    String sha1 = _version_get_sha1(p_version);
+    String path = shader_cache_dir.path_join(name).path_join(group_sha256[p_group]).path_join(sha1) + ".cache";
+
+    Ref<FileAccess> f = FileAccess::open(path, FileAccess::WRITE);
+    if (f.is_null()) {
+        std::cerr << "Error: File is null in _save_to_cache()." << std::endl;
+        std::cerr << "ShaderRD::_save_to_cache was called with an uninitialized file." << std::endl;
+        std::cerr << "Path attempted: " << path.utf8().get_data() << std::endl;  // Log the path for debugging
+        return;
+    }
+
+    f->store_buffer((const uint8_t *)shader_file_header, 4);
+    f->store_32(cache_file_version); // File version.
+    uint32_t variant_count = group_to_variant_map[p_group].size();
+    f->store_32(variant_count); // Variant count.
+    for (uint32_t i = 0; i < variant_count; i++) {
+        int variant_id = group_to_variant_map[p_group][i];
+        f->store_32(p_version->variant_data[variant_id].size()); // Stage count.
+        f->store_buffer(p_version->variant_data[variant_id].ptr(), p_version->variant_data[variant_id].size());
+    }
+
+    std::cerr << "Successfully saved shader to cache." << std::endl;  // Log success message
 }
 
 void ShaderRD::_allocate_placeholders(Version *p_version, int p_group) {
